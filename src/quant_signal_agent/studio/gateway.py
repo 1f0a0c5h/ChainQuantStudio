@@ -1557,10 +1557,11 @@ class CodexWorkOrderRunner:
             )
             result = await thread.run(prompt)
             status = getattr(result.status, "value", result.status)
-            if status != "completed" or not result.final_response:
+            response = result.final_response
+            if status != "completed" or not isinstance(response, str) or not response:
                 detail = result.error or result.status
                 raise RuntimeError(f"Codex {role} turn did not complete: {detail}")
-            return result.final_response
+            return response
         finally:
             await client.close()
 
