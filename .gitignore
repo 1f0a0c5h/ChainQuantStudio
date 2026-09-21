@@ -1,0 +1,37 @@
+# Local secrets and environment overrides
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+*.log
+.runtime/
+work/studio/
+docs/*.local.md
+
+# Reproducible research downloads and generated datasets
+data/backtest/
+reports/backtests/
+reports/charts/
+reports/
+signals/implemented/
+strategies/implemented/
+private/
+
+# Virtual environments
+.venv/
+venv/
+
+# Editors and operating systems
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

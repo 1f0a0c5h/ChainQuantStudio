@@ -1,0 +1,7 @@
+{
+  "ticker": {"topic": "tickers.BTCUSDT", "type": "snapshot", "ts": 1720000000000, "data": {"symbol": "BTCUSDT", "lastPrice": "65000.1", "markPrice": "65001", "indexPrice": "65002", "bid1Price": "65000", "ask1Price": "65000.2", "volume24h": "1200", "turnover24h": "78000000", "openInterest": "10000", "openInterestValue": "650000000", "fundingRate": "0.0001", "nextFundingTime": "1720028800000"}},
+  "trade": {"topic": "publicTrade.BTCUSDT", "type": "snapshot", "ts": 1720000000100, "data": [{"T": 1720000000090, "s": "BTCUSDT", "S": "Buy", "v": "0.01", "p": "65000.1", "i": "trade-1"}]},
+  "book_snapshot": {"topic": "orderbook.200.BTCUSDT", "type": "snapshot", "ts": 1720000000200, "cts": 1720000000190, "data": {"s": "BTCUSDT", "b": [["65000", "1"]], "a": [["65001", "2"]], "u": 100, "seq": 200}},
+  "book_delta": {"topic": "orderbook.200.BTCUSDT", "type": "delta", "ts": 1720000000300, "cts": 1720000000290, "data": {"s": "BTCUSDT", "b": [["65000", "1.5"]], "a": [["65001", "0"]], "u": 101, "seq": 201}},
+  "candle": {"topic": "kline.5.BTCUSDT", "type": "snapshot", "ts": 1720000000400, "data": [{"start": 1719999900000, "end": 1720000199999, "interval": "5", "open": "64900", "high": "65100", "low": "64800", "close": "65000", "volume": "10", "turnover": "650000", "confirm": false, "timestamp": 1720000000390}]}
+}

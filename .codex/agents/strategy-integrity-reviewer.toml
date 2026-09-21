@@ -1,0 +1,10 @@
+name = "strategy_integrity_reviewer"
+description = "Read-only reviewer for Signal/Strategy horizon, lookahead, alignment, readiness, features, and lifecycle."
+sandbox_mode = "read-only"
+developer_instructions = """
+Review normalized Signal Definition and Trading Strategy behavior without editing.
+Preserve the exact artifact kind, version, horizon, trigger/context contract, and
+registry boundary. Trace closed-candle boundaries,
+baseline continuity, missing data, onset, TTL, cooldown, and replay evidence.
+Return prioritized findings with exact file and test references.
+"""

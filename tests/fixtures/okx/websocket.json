@@ -1,0 +1,9 @@
+{
+  "ticker": {"arg": {"channel": "tickers", "instId": "BTC-USDT-SWAP"}, "data": [{"instId": "BTC-USDT-SWAP", "last": "65000.1", "bidPx": "65000", "askPx": "65000.2", "volCcy24h": "1200", "volCcyQuote24h": "78000000", "ts": "1720000000000"}]},
+  "trade": {"arg": {"channel": "trades", "instId": "BTC-USDT-SWAP"}, "data": [{"instId": "BTC-USDT-SWAP", "tradeId": "42", "px": "65000.1", "sz": "3", "side": "buy", "ts": "1720000000100"}]},
+  "book_snapshot": {"arg": {"channel": "books", "instId": "BTC-USDT-SWAP"}, "action": "snapshot", "data": [{"bids": [["65000", "3", "0", "2"]], "asks": [["65001", "4", "0", "1"]], "ts": "1720000000200", "seqId": 100}]},
+  "book_delta": {"arg": {"channel": "books", "instId": "BTC-USDT-SWAP"}, "action": "update", "data": [{"bids": [["65000", "5", "0", "2"]], "asks": [["65001", "0", "0", "1"]], "ts": "1720000000300", "prevSeqId": 100, "seqId": 101}]},
+  "funding": {"arg": {"channel": "funding-rate", "instId": "BTC-USDT-SWAP"}, "data": [{"instId": "BTC-USDT-SWAP", "fundingRate": "0.0001", "nextFundingTime": "1720028800000", "ts": "1720000000400"}]},
+  "open_interest": {"arg": {"channel": "open-interest", "instId": "BTC-USDT-SWAP"}, "data": [{"instId": "BTC-USDT-SWAP", "oi": "100000", "oiCcy": "10000", "oiUsd": "650000000", "ts": "1720000000500"}]},
+  "candle": {"arg": {"channel": "candle5m", "instId": "BTC-USDT-SWAP"}, "data": [["1719999900000", "64900", "65100", "64800", "65000", "100", "10", "650000", "0"]]}
+}

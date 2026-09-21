@@ -1,0 +1,37 @@
+{
+  "asset_context": {
+    "channel": "activeAssetCtx",
+    "data": {
+      "coin": "BTC",
+      "ctx": {
+        "dayNtlVlm": "1200000000",
+        "funding": "0.0000125",
+        "markPx": "65001",
+        "midPx": "65000.5",
+        "openInterest": "25000",
+        "oraclePx": "65002"
+      }
+    }
+  },
+  "trade": {
+    "channel": "trades",
+    "data": [
+      {"coin": "BTC", "side": "B", "px": "65001", "sz": "0.01", "hash": "0x1", "time": 1720000000000, "tid": 123}
+    ]
+  },
+  "book": {
+    "channel": "l2Book",
+    "data": {
+      "coin": "BTC",
+      "time": 1720000000000,
+      "levels": [
+        [{"px": "65000", "sz": "1.2", "n": 4}],
+        [{"px": "65001", "sz": "0.8", "n": 3}]
+      ]
+    }
+  },
+  "candle": {
+    "channel": "candle",
+    "data": {"t": 1719997200000, "T": 1720000799999, "s": "BTC", "i": "1h", "o": "64000", "c": "65000", "h": "65100", "l": "63900", "v": "100", "n": 200}
+  }
+}
