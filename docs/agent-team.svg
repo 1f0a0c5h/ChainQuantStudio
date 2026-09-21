@@ -1,0 +1,132 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="980" viewBox="0 0 1600 980" role="img" aria-labelledby="title desc">
+  <title id="title">CHA!N Quant Studio agent team</title>
+  <desc id="desc">Eight illustrated agent cards grouped into research and governance, then optimization and operations.</desc>
+  <defs>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M32 0H0V32" fill="none" stroke="#162736" stroke-width="1"/>
+    </pattern>
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <g id="avatar">
+      <rect x="8" y="2" width="54" height="62" fill="#14222d" stroke="currentColor" stroke-width="2"/>
+      <rect x="27" y="13" width="17" height="16" fill="#d8a274"/>
+      <rect x="24" y="9" width="23" height="7" fill="#17202a"/>
+      <rect x="23" y="31" width="25" height="23" rx="2" fill="currentColor"/>
+      <path d="M23 34L12 51M48 34L58 51" stroke="currentColor" stroke-width="6"/>
+      <path d="M28 54L24 63M43 54L47 63" stroke="#8ea4b4" stroke-width="5"/>
+      <rect x="30" y="19" width="3" height="3" fill="#0b141d"/><rect x="39" y="19" width="3" height="3" fill="#0b141d"/>
+    </g>
+    <g id="manager-icon" stroke="currentColor" fill="none" stroke-width="2"><circle cx="8" cy="5" r="3"/><circle cx="3" cy="15" r="3"/><circle cx="13" cy="15" r="3"/><path d="M7 8L4 12M9 8l3 4M6 15h4"/></g>
+    <g id="strategy-icon" stroke="currentColor" fill="none" stroke-width="2"><path d="M3 18V9M8 14V3M13 19V8"/><rect x="1" y="11" width="4" height="4"/><rect x="6" y="6" width="4" height="5"/><rect x="11" y="11" width="4" height="5"/></g>
+    <g id="review-icon" stroke="currentColor" fill="none" stroke-width="2"><rect x="2" y="2" width="14" height="17" rx="2"/><path d="M5 7l2 2 4-4M5 14l2 2 5-5"/></g>
+    <g id="backtest-icon" stroke="currentColor" fill="none" stroke-width="2"><path d="M2 18V3M2 18h16M5 14l4-5 3 3 5-8"/></g>
+    <g id="optimize-icon" stroke="currentColor" fill="none" stroke-width="2"><path d="M2 5h16M2 10h16M2 15h16"/><circle cx="7" cy="5" r="2" fill="#0b141d"/><circle cx="13" cy="10" r="2" fill="#0b141d"/><circle cx="5" cy="15" r="2" fill="#0b141d"/></g>
+    <g id="signal-icon" stroke="currentColor" fill="none" stroke-width="2"><circle cx="9" cy="10" r="2" fill="currentColor"/><path d="M5 6a6 6 0 000 8M13 6a6 6 0 010 8M2 3a10 10 0 000 14M16 3a10 10 0 010 14"/></g>
+    <g id="maintenance-icon" stroke="currentColor" fill="none" stroke-width="2"><path d="M12 2a5 5 0 01-6 6L2 12l5 5 4-4a5 5 0 006-6l-4 3-3-3z"/></g>
+    <g id="trading-icon" stroke="currentColor" fill="none" stroke-width="2"><rect x="3" y="9" width="13" height="10" rx="2"/><path d="M6 9V6a4 4 0 018 0v3M10 13v3"/></g>
+    <style>
+      .section{font:700 18px ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:4px;fill:#7e94a4}
+      .role{font:700 22px ui-monospace,SFMono-Regular,Consolas,monospace;fill:#eef6fb}
+      .eyebrow{font:700 12px ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:2px;fill:#718898}
+      .copy{font:400 15px ui-monospace,SFMono-Regular,Consolas,monospace;fill:#b8c8d3}
+      .boundary{font:400 14px ui-monospace,SFMono-Regular,Consolas,monospace;fill:#91a6b4}
+      .card{fill:#101d28;stroke:#29404f;stroke-width:2}
+      .divider{stroke:#263a48;stroke-width:1}
+    </style>
+  </defs>
+
+  <rect width="1600" height="980" fill="#0b141d"/>
+  <rect width="1600" height="980" fill="url(#grid)" opacity=".55"/>
+  <rect x="50" y="38" width="13" height="34" fill="#55f5a3" filter="url(#glow)"/>
+  <rect x="54" y="29" width="5" height="51" fill="#55f5a3"/>
+  <text x="82" y="61" class="role" font-size="30">CHA!N AGENT TEAM</text>
+  <text x="1550" y="58" text-anchor="end" class="eyebrow">RESEARCH · VERIFY · SIGNAL</text>
+
+  <text x="50" y="112" class="section">RESEARCH &amp; GOVERNANCE</text>
+
+  <g transform="translate(50 135)" style="color:#50d6ff">
+    <rect class="card" width="340" height="340" rx="8"/><rect width="340" height="5" fill="currentColor"/>
+    <text x="24" y="40" class="role">MANAGER AGENT</text><use href="#manager-icon" x="296" y="21"/>
+    <use href="#avatar" x="20" y="57"/>
+    <text x="105" y="74" class="eyebrow">MISSION</text><text x="105" y="98" class="copy">Route the user's outcome</text><text x="105" y="120" class="copy">through the right DAG.</text>
+    <path class="divider" d="M24 142H316"/>
+    <text x="24" y="170" class="eyebrow">OWNS</text><text x="24" y="194" class="copy">Intent, delegation, status,</text><text x="24" y="216" class="copy">and user questions.</text>
+    <text x="24" y="258" class="eyebrow">BOUNDARY</text><text x="24" y="282" class="boundary">Cannot approve gates or alter</text><text x="24" y="303" class="boundary">core safety controls.</text>
+  </g>
+
+  <g transform="translate(430 135)" style="color:#4fe0cb">
+    <rect class="card" width="340" height="340" rx="8"/><rect width="340" height="5" fill="currentColor"/>
+    <text x="24" y="40" class="role">STRATEGY AGENT</text><use href="#strategy-icon" x="298" y="20"/>
+    <use href="#avatar" x="20" y="57"/>
+    <text x="105" y="74" class="eyebrow">MISSION</text><text x="105" y="98" class="copy">Turn a market idea into</text><text x="105" y="120" class="copy">tested, versioned logic.</text>
+    <path class="divider" d="M24 142H316"/>
+    <text x="24" y="170" class="eyebrow">OWNS</text><text x="24" y="194" class="copy">Implementation, fixtures,</text><text x="24" y="216" class="copy">and deterministic tests.</text>
+    <text x="24" y="258" class="eyebrow">BOUNDARY</text><text x="24" y="282" class="boundary">Cannot review or release its</text><text x="24" y="303" class="boundary">own implementation.</text>
+  </g>
+
+  <g transform="translate(810 135)" style="color:#f0c75e">
+    <rect class="card" width="340" height="340" rx="8"/><rect width="340" height="5" fill="currentColor"/>
+    <text x="24" y="40" class="role">REVIEW AGENT</text><use href="#review-icon" x="300" y="20"/>
+    <use href="#avatar" x="20" y="57"/>
+    <text x="105" y="74" class="eyebrow">MISSION</text><text x="105" y="98" class="copy">Audit the complete evidence</text><text x="105" y="120" class="copy">package independently.</text>
+    <path class="divider" d="M24 142H316"/>
+    <text x="24" y="170" class="eyebrow">OWNS</text><text x="24" y="194" class="copy">Spec, tests, look-ahead,</text><text x="24" y="216" class="copy">lineage, and release checks.</text>
+    <text x="24" y="258" class="eyebrow">BOUNDARY</text><text x="24" y="282" class="boundary">Reports findings; does not</text><text x="24" y="303" class="boundary">implement or self-approve.</text>
+  </g>
+
+  <g transform="translate(1190 135)" style="color:#ae86ff">
+    <rect class="card" width="340" height="340" rx="8"/><rect width="340" height="5" fill="currentColor"/>
+    <text x="24" y="40" class="role">BACKTEST AGENT</text><use href="#backtest-icon" x="298" y="20"/>
+    <use href="#avatar" x="20" y="57"/>
+    <text x="105" y="74" class="eyebrow">MISSION</text><text x="105" y="98" class="copy">Replay approved logic on</text><text x="105" y="120" class="copy">versioned market data.</text>
+    <path class="divider" d="M24 142H316"/>
+    <text x="24" y="170" class="eyebrow">OWNS</text><text x="24" y="194" class="copy">Reports, metrics, charts,</text><text x="24" y="216" class="copy">and reproducible evidence.</text>
+    <text x="24" y="258" class="eyebrow">BOUNDARY</text><text x="24" y="282" class="boundary">Cannot tune implementation</text><text x="24" y="303" class="boundary">to improve its own result.</text>
+  </g>
+
+  <text x="50" y="552" class="section">OPTIMIZATION &amp; OPERATIONS</text>
+
+  <g transform="translate(50 575)" style="color:#ed72c5">
+    <rect class="card" width="340" height="340" rx="8"/><rect width="340" height="5" fill="currentColor"/>
+    <text x="24" y="40" class="role">OPTIMIZATION AGENT</text><use href="#optimize-icon" x="298" y="20"/>
+    <use href="#avatar" x="20" y="57"/>
+    <text x="105" y="74" class="eyebrow">MISSION</text><text x="105" y="98" class="copy">Diagnose weaknesses and</text><text x="105" y="120" class="copy">propose bounded revisions.</text>
+    <path class="divider" d="M24 142H316"/>
+    <text x="24" y="170" class="eyebrow">OWNS</text><text x="24" y="194" class="copy">Post-backtest diagnosis and</text><text x="24" y="216" class="copy">change proposals.</text>
+    <text x="24" y="258" class="eyebrow">BOUNDARY</text><text x="24" y="282" class="boundary">Proposal-only until the user</text><text x="24" y="303" class="boundary">approves revision scope.</text>
+  </g>
+
+  <g transform="translate(430 575)" style="color:#62e78e">
+    <rect class="card" width="340" height="340" rx="8"/><rect width="340" height="5" fill="currentColor"/>
+    <text x="24" y="40" class="role">SIGNAL AGENT</text><use href="#signal-icon" x="299" y="20"/>
+    <use href="#avatar" x="20" y="57"/>
+    <text x="105" y="74" class="eyebrow">MISSION</text><text x="105" y="98" class="copy">Run the exact approved</text><text x="105" y="120" class="copy">artifact and notify users.</text>
+    <path class="divider" d="M24 142H316"/>
+    <text x="24" y="170" class="eyebrow">OWNS</text><text x="24" y="194" class="copy">Live signal evaluation and</text><text x="24" y="216" class="copy">advisory notifications.</text>
+    <text x="24" y="258" class="eyebrow">BOUNDARY</text><text x="24" y="282" class="boundary">Cannot execute trades or run</text><text x="24" y="303" class="boundary">an unapproved version.</text>
+  </g>
+
+  <g transform="translate(810 575)" style="color:#f3a24f">
+    <rect class="card" width="340" height="340" rx="8"/><rect width="340" height="5" fill="currentColor"/>
+    <text x="24" y="40" class="role">MAINTENANCE AGENT</text><use href="#maintenance-icon" x="299" y="20"/>
+    <use href="#avatar" x="20" y="57"/>
+    <text x="105" y="74" class="eyebrow">MISSION</text><text x="105" y="98" class="copy">Keep runtime healthy and</text><text x="105" y="120" class="copy">verify incident recovery.</text>
+    <path class="divider" d="M24 142H316"/>
+    <text x="24" y="170" class="eyebrow">OWNS</text><text x="24" y="194" class="copy">Monitoring, diagnosis, fixes,</text><text x="24" y="216" class="copy">and recovery evidence.</text>
+    <text x="24" y="258" class="eyebrow">BOUNDARY</text><text x="24" y="282" class="boundary">Cannot redefine strategy or</text><text x="24" y="303" class="boundary">bypass release gates.</text>
+  </g>
+
+  <g transform="translate(1190 575)" style="color:#778793">
+    <rect class="card" width="340" height="340" rx="8"/><rect width="340" height="5" fill="currentColor"/>
+    <text x="24" y="40" class="role">TRADING AGENT</text><use href="#trading-icon" x="299" y="20"/>
+    <use href="#avatar" x="20" y="57"/>
+    <text x="105" y="74" class="eyebrow">MISSION</text><text x="105" y="98" class="copy">Reserved for a separately</text><text x="105" y="120" class="copy">authorized future system.</text>
+    <path class="divider" d="M24 142H316"/>
+    <text x="24" y="170" class="eyebrow">STATE</text><text x="24" y="194" class="copy">Locked and disconnected from</text><text x="24" y="216" class="copy">exchange execution.</text>
+    <text x="24" y="258" class="eyebrow">BOUNDARY</text><text x="24" y="282" class="boundary">No credentials, order client,</text><text x="24" y="303" class="boundary">or trading authority.</text>
+  </g>
+
+  <text x="50" y="958" class="eyebrow">ONE USER INTERFACE · SPECIALIZED OWNERSHIP · EXPLICIT APPROVALS</text>
+</svg>
