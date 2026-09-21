@@ -27,7 +27,7 @@ from quant_signal_agent.backtesting.models import SpecValidationError
 from quant_signal_agent.backtesting.spec import load_spec
 
 ROOT = Path(__file__).resolve().parents[1]
-EXAMPLE_V2 = ROOT / "spec.v2.example.md"
+EXAMPLE_V2 = ROOT / "examples" / "internal-backtest-spec.v2.md"
 
 
 def test_generic_spec_compiles_synthetic_contract() -> None:

@@ -51,6 +51,18 @@ User-created artifacts belong in ignored local directories such as
 `signals/implemented/`, `strategies/implemented/`, `reports/`, `data/backtest/`,
 and `.runtime/`.
 
+## Specification entry points
+
+- [`spec.example.md`](spec.example.md) is the concise user upload template. Its
+  `Backtest required` field selects whether Data Service and Backtest nodes exist.
+- [`examples/internal-backtest-spec.v2.md`](examples/internal-backtest-spec.v2.md)
+  is a developer-only example for the internal feature DSL.
+- [`config/spec.normalized.schema.json`](config/spec.normalized.schema.json) is the
+  machine-readable contract produced by normalization.
+
+The Manager upload/download UI serves the same user template from
+`studio-dashboard/public/spec.template.md`.
+
 ## Local development
 
 Requirements: Python 3.12+, Node/pnpm, Rust/Cargo, and Windows MSVC Build Tools for

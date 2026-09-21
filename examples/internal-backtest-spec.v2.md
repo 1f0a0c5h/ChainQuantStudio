@@ -1,7 +1,8 @@
-# Synthetic backtest contract example
+# Synthetic internal backtest contract
 
-This file demonstrates the safe schema only. It is not a bundled Signal
-Definition or Trading Strategy and is never registered for live use.
+This developer example demonstrates the safe internal schema only. It is not a
+user upload template, bundled Signal Definition, or bundled Trading Strategy and
+is never registered for live use.
 
 ```toml qsa-backtest
 schema_version = 2

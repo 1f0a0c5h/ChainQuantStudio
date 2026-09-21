@@ -96,3 +96,14 @@ def test_nested_instruction_files_cover_scheduled_boundaries() -> None:
         path.is_file() and path.read_text(encoding="utf-8").strip()
         for path in expected
     )
+
+
+def test_user_spec_download_matches_root_example() -> None:
+    root_template = (ROOT / "spec.example.md").read_text(encoding="utf-8")
+    dashboard_template = (
+        ROOT / "studio-dashboard" / "public" / "spec.template.md"
+    ).read_text(encoding="utf-8")
+
+    assert root_template == dashboard_template
+    assert "Backtest required: `yes` or `no`" in root_template
+    assert (ROOT / "examples" / "internal-backtest-spec.v2.md").is_file()

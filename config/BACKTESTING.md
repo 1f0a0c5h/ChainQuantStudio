@@ -13,8 +13,9 @@ result report.
 
 The v2 schema supports a horizon-neutral feature DSL composed from allowlisted
 rolling, comparison, aggregation, and Boolean operators. Specs cannot execute
-Python, shell commands, imports, arbitrary paths, or URLs. The synthetic
-`spec.v2.example.md` demonstrates schema shape only; it is not a bundled artifact.
+Python, shell commands, imports, arbitrary paths, or URLs. The developer-only
+`examples/internal-backtest-spec.v2.md` demonstrates internal schema shape; it is
+not a user template or bundled artifact.
 
 ## Workflow
 
