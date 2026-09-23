@@ -67,6 +67,21 @@ def data_main(argv: list[str] | None = None) -> int:
                 failures.append(f"invalid hash: {relative}")
             elif hashlib.sha256(path.read_bytes()).hexdigest() != expected:
                 failures.append(f"hash mismatch: {relative}")
+            provenance_value = row.get("provenance_path")
+            provenance_hash = row.get("provenance_sha256")
+            if provenance_value is not None or provenance_hash is not None:
+                provenance = Path(str(provenance_value or ""))
+                if provenance.is_absolute() or ".." in provenance.parts:
+                    failures.append(f"unsafe provenance path: {provenance}")
+                elif not (service.root / provenance).is_file():
+                    failures.append(f"missing provenance: {provenance}")
+                elif not SHA256.fullmatch(str(provenance_hash or "")):
+                    failures.append(f"invalid provenance hash: {provenance}")
+                elif (
+                    hashlib.sha256((service.root / provenance).read_bytes()).hexdigest()
+                    != provenance_hash
+                ):
+                    failures.append(f"provenance hash mismatch: {provenance}")
         _print({"status": "valid" if not failures else "invalid", "count": len(rows),
                 "failures": failures})
         return 0 if not failures else 2

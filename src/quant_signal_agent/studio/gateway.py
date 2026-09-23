@@ -41,6 +41,10 @@ from quant_signal_agent.studio.orchestration import (
     sha256_text,
     unique_strings,
 )
+from quant_signal_agent.studio.strategy_data import (
+    MarketDataAcquisitionError,
+    StrategyDatasetMaterializer,
+)
 
 DEFAULT_ORIGINS = (
     "https://chain-quant-studio.lesly2000105.chatgpt.site",
@@ -594,6 +598,18 @@ class SignalRuntimeController:
 class CodexWorkOrderRunner:
     """Consume allowlisted studio work orders with the local Codex SDK."""
 
+    _EXECUTABLE_STAGES = frozenset(
+        {
+            "strategy",
+            "review_implementation",
+            "dataset",
+            "backtest",
+            "review_backtest",
+            "optimize",
+            "maintenance",
+        }
+    )
+
     _REVIEW_CHECKS = {
         "review_implementation": (
             "spec",
@@ -624,6 +640,8 @@ class CodexWorkOrderRunner:
         max_attempts: int = 30,
         same_issue_limit: int = 5,
         artifact_registry: ArtifactRegistry | None = None,
+        data_service: VersionedMarketDataService | None = None,
+        dataset_materializer: Callable[[dict[str, Any]], Awaitable[str]] | None = None,
     ) -> None:
         self.project_root = project_root.resolve()
         self.store = store
@@ -641,6 +659,13 @@ class CodexWorkOrderRunner:
         self.artifact_registry = artifact_registry or ArtifactRegistry(
             self.project_root / ".runtime" / "studio-artifacts.json"
         )
+        self.data_service = data_service or VersionedMarketDataService(
+            self.project_root / ".runtime" / "data-service"
+        )
+        self._dataset_materializer = dataset_materializer or StrategyDatasetMaterializer(
+            project_root=self.project_root,
+            service=self.data_service,
+        ).materialize
         self._circuit = GlobalCodexCircuitBreaker()
         self.blocked_reason: str | None = None
         self._stop = asyncio.Event()
@@ -841,6 +866,7 @@ class CodexWorkOrderRunner:
     async def _run(self) -> None:
         await self._migrate_optimization_workflow()
         await self._recover_interrupted_orders()
+        await self._recover_optimizer_stage_regressions()
         await self._recover_passed_review_dead_letters()
         await self._recover_failed_review_orders()
         await self._recover_completed_backtest_orders()
@@ -910,14 +936,7 @@ class CodexWorkOrderRunner:
                 if order.get("status") != "working":
                     continue
                 resume_stage = str(order.get("stage") or order.get("agent") or "strategy")
-                if resume_stage not in {
-                    "strategy",
-                    "review_implementation",
-                    "backtest",
-                    "review_backtest",
-                    "optimize",
-                    "maintenance",
-                }:
+                if resume_stage not in self._EXECUTABLE_STAGES:
                     resume_stage = str(order.get("agent") or "strategy")
                 order.update(
                     {
@@ -931,6 +950,88 @@ class CodexWorkOrderRunner:
                     "MANAGER",
                     f"工作單 {order['id']} 因 Gateway 中斷已安全退回佇列。",
                 )
+
+        await self.store.update(mutation)
+
+    async def _recover_optimizer_stage_regressions(self) -> None:
+        """Repair dead letters created when a queued optimizer was claimed as Strategy.
+
+        Older Gateway builds omitted ``optimize`` from the claim allowlist. After a
+        restart, an optimizer checkpoint was therefore rewritten to ``strategy`` and
+        its subsequent timeouts consumed the retry budget. Recovery is deliberately
+        narrow: independently passed backtest evidence must still be present and no
+        optimization proposal may have completed.
+        """
+
+        def mutation(state: dict[str, Any]) -> None:
+            recovered: set[str] = set()
+            for order in state.setdefault("work_orders", []):
+                if (
+                    order.get("status") != "dead_letter"
+                    or order.get("agent") != "strategy"
+                    or order.get("stage") != "strategy"
+                    or order.get("optimization_required") is not True
+                ):
+                    continue
+                results = order.get("results")
+                if not isinstance(results, dict) or results.get("optimization"):
+                    continue
+                review = results.get("review_backtest")
+                if (
+                    not isinstance(review, str)
+                    or self._review_outcome(review, "review_backtest") != "pass"
+                ):
+                    continue
+                checkpoints = order.get("checkpoints")
+                if not isinstance(checkpoints, list) or not any(
+                    isinstance(item, dict) and item.get("stage") == "optimize"
+                    for item in checkpoints
+                ):
+                    continue
+                reason = str(order.get("last_error") or "")
+                if not reason.startswith("Codex strategy turn exceeded "):
+                    continue
+
+                issue_key = self._issue_key("strategy", reason)
+                counts = order.get("issue_counts")
+                spurious_attempts = 0
+                if isinstance(counts, dict):
+                    spurious_attempts = int(counts.pop(issue_key, 0))
+                identifier = str(order["id"])
+                recovered.add(identifier)
+                order.update(
+                    {
+                        "status": "queued",
+                        "stage": "optimize",
+                        "attempts": max(
+                            0, int(order.get("attempts", 0)) - spurious_attempts
+                        ),
+                        "finished_at": None,
+                        "last_heartbeat_at": _utc_now(),
+                    }
+                )
+                order.pop("last_error", None)
+                order.pop("recurring_issues", None)
+                order.pop("retry_not_before", None)
+                order.setdefault("checkpoints", []).append(
+                    {
+                        "stage": "optimize",
+                        "status": "queued_after_stage_recovery",
+                        "at": _utc_now(),
+                        "reason": "Recovered optimizer stage rewritten by legacy claim logic",
+                    }
+                )
+                StudioService._append_message(
+                    state,
+                    "MAINTENANCE",
+                    f"工作單 {identifier} 已保留通過審查的回測證據，並恢復至 Optimize 階段。",
+                )
+            if recovered:
+                state["dead_letters"] = [
+                    item
+                    for item in state.get("dead_letters", [])
+                    if item.get("id") not in recovered
+                ]
 
         await self.store.update(mutation)
 
@@ -1314,13 +1415,7 @@ class CodexWorkOrderRunner:
                     except ValueError:
                         pass
                 stage = str(order.get("stage") or order["agent"])
-                if stage not in {
-                    "strategy",
-                    "review_implementation",
-                    "backtest",
-                    "review_backtest",
-                    "maintenance",
-                }:
+                if stage not in self._EXECUTABLE_STAGES:
                     stage = str(order["agent"])
                 order["status"] = "working"
                 order["stage"] = stage
@@ -1379,6 +1474,31 @@ class CodexWorkOrderRunner:
         try:
             if order["agent"] == "strategy":
                 backtest_required = order.get("backtest_required", True) is not False
+                if (
+                    stage in {"dataset", "backtest"}
+                    and backtest_required
+                    and not results.get("dataset")
+                ):
+                    try:
+                        results["dataset"] = await self._dataset_materializer(
+                            {**order, "results": dict(results)}
+                        )
+                    except MarketDataAcquisitionError as exc:
+                        await self._requeue(
+                            identifier,
+                            "dataset",
+                            results,
+                            str(exc),
+                            retry_after_seconds=300,
+                        )
+                        return
+                    await self._checkpoint(identifier, "backtest", "DATA", results)
+                    stage = "backtest"
+                    order = {**order, "stage": stage, "results": dict(results)}
+                elif stage == "dataset" and backtest_required:
+                    await self._checkpoint(identifier, "backtest", "DATA", results)
+                    stage = "backtest"
+                    order = {**order, "stage": stage, "results": dict(results)}
                 if stage == "strategy":
                     stage = "strategy"
                     results["strategy"] = await asyncio.wait_for(
@@ -1678,6 +1798,13 @@ class CodexWorkOrderRunner:
             )
             if role == "backtest":
                 previous = order.get("results")
+                dataset = previous.get("dataset") if isinstance(previous, dict) else None
+                if not isinstance(dataset, str) or not dataset.strip():
+                    raise ValueError("backtest stage is missing the Data Service handoff")
+                prompt += (
+                    "\nDeterministic Data Service handoff (authoritative input; verify its "
+                    "dataset and provenance hashes before use):\n" + dataset
+                )
                 prior_review = (
                     previous.get("review_backtest") if isinstance(previous, dict) else None
                 )
@@ -2909,7 +3036,7 @@ class StudioService:
                 if not approved:
                     order.update({"status": "queued", "stage": "strategy", "results": {}})
                 elif order.get("backtest_required", True) is not False:
-                    order.update({"status": "queued", "stage": "backtest"})
+                    order.update({"status": "queued", "stage": "dataset"})
                 else:
                     order.update(
                         {"status": "awaiting_live_approval", "stage": ApprovalGate.LIVE.value}
@@ -3126,14 +3253,18 @@ class StudioService:
         reports_dir = self.project_root / "reports"
         if not reports_dir.is_dir():
             return {}
-        manifests = tuple(sorted(reports_dir.glob("*.json")))
+        manifests = tuple(
+            sorted((*reports_dir.glob("*.json"), *reports_dir.glob("backtests/**/manifest.json")))
+        )
         signature = tuple(
-            (path.name, path.stat().st_mtime_ns, path.stat().st_size) for path in manifests
+            (path.relative_to(reports_dir).as_posix(), path.stat().st_mtime_ns, path.stat().st_size)
+            for path in manifests
         )
         if signature == self._report_cache_signature:
             return self._report_cache
 
         report_index: dict[str, dict[str, Any]] = {}
+        report_ranks: dict[str, tuple[bool, bool, int]] = {}
         for manifest_path in manifests:
             try:
                 payload = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -3144,8 +3275,15 @@ class StudioService:
             work_order = payload.get("work_order")
             if not isinstance(work_order, str) or not work_order:
                 continue
+            evidence = payload.get("evidence")
+            evidence = evidence if isinstance(evidence, dict) else {}
             artifacts: list[dict[str, str]] = []
-            markdown_path = manifest_path.with_suffix(".md")
+            report_path = evidence.get("report")
+            markdown_path = (
+                self.project_root / report_path
+                if isinstance(report_path, str) and report_path
+                else manifest_path.with_suffix(".md")
+            )
             for label, path, kind in (
                 ("REPORT", markdown_path, "report"),
                 ("DATA", manifest_path, "data"),
@@ -3153,26 +3291,45 @@ class StudioService:
                 artifact = self._artifact_descriptor(label, path, kind)
                 if artifact is not None:
                     artifacts.append(artifact)
-            for label, raw_path in self._iter_chart_paths(payload.get("charts"), "chart"):
+            charts = evidence.get("charts") or payload.get("charts")
+            for label, raw_path in self._iter_chart_paths(charts, "chart"):
                 chart_path = Path(raw_path)
                 if not chart_path.is_absolute():
                     chart_path = self.project_root / chart_path
                 artifact = self._artifact_descriptor(label.upper(), chart_path, "chart")
                 if artifact is not None:
                     artifacts.append(artifact)
-            strategy = payload.get("strategy")
+            strategy = payload.get("strategy") or payload.get("artifact")
             title = (
                 str(strategy.get("stable_id"))
                 if isinstance(strategy, dict) and strategy.get("stable_id")
                 else manifest_path.stem.replace("_", "-")
             )
             provenance = payload.get("provenance")
+            dataset = provenance.get("dataset") if isinstance(provenance, dict) else None
+            candle_count = (
+                provenance.get("candle_count") if isinstance(provenance, dict) else None
+            )
+            if candle_count is None and isinstance(dataset, dict):
+                candle_count = dataset.get("row_count")
+            engine = payload.get("engine")
+            has_performance = (
+                isinstance(engine, dict)
+                and engine.get("executed") is True
+                and isinstance(payload.get("performance_standard"), dict)
+            )
+            rank = (
+                has_performance,
+                any(item["kind"] == "report" for item in artifacts),
+                manifest_path.stat().st_mtime_ns,
+            )
+            if rank <= report_ranks.get(work_order, (False, False, -1)):
+                continue
+            report_ranks[work_order] = rank
             report_index[work_order] = {
                 "title": title,
                 "status": str(payload.get("status") or "complete"),
-                "candle_count": (
-                    provenance.get("candle_count") if isinstance(provenance, dict) else None
-                ),
+                "candle_count": candle_count,
                 "artifacts": artifacts,
             }
         self._report_cache_signature = signature
@@ -4246,12 +4403,18 @@ def main() -> None:
     project_root = Path(__file__).resolve().parents[3]
     runtime_dir = project_root / ".runtime"
     store = JsonStateStore(runtime_dir / "studio-state.json")
+    data_service = VersionedMarketDataService(runtime_dir / "data-service")
     service = StudioService(
         project_root=project_root,
         store=store,
         runtime=SignalRuntimeController(project_root=project_root, runtime_dir=runtime_dir),
-        worker=CodexWorkOrderRunner(project_root=project_root, store=store),
+        worker=CodexWorkOrderRunner(
+            project_root=project_root,
+            store=store,
+            data_service=data_service,
+        ),
         manager_router=CodexManagerRouter(project_root=project_root),
+        data_service=data_service,
     )
     extra = tuple(
         item.strip()

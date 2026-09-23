@@ -14,7 +14,7 @@ FIELD = re.compile(r"^-\s+([^:]+):\s*(.*?)\s*$")
 HEADING = re.compile(r"^##\s+\d+\.\s+(.+?)\s*$")
 SAFE_ID = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 SEMVER = re.compile(r"^\d+\.\d+\.\d+$")
-PLACEHOLDER = re.compile(r"<[^>]+>")
+PLACEHOLDER = re.compile(r"<[^<>\r\n]+>")
 
 
 class UserSpecError(ValueError):

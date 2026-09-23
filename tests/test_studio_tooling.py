@@ -1,6 +1,11 @@
 from pathlib import Path
 
-from quant_signal_agent.studio.orchestration import ArtifactRecord, ArtifactRegistry
+from quant_signal_agent.studio.orchestration import (
+    ArtifactRecord,
+    ArtifactRegistry,
+    DatasetKey,
+    VersionedMarketDataService,
+)
 from quant_signal_agent.studio.tooling import artifacts_main, data_main, main
 
 
@@ -19,6 +24,20 @@ def test_data_cli_materializes_and_verifies_content_addressed_file(tmp_path: Pat
         "--market", "spot", "--symbol", "BTCUSDT", "--timeframe", "4h",
         "--start", "2026-01-01T00:00:00Z", "--end", "2026-02-01T00:00:00Z"]) == 0
     assert data_main(["verify", *args]) == 0
+
+
+def test_data_cli_rejects_tampered_provenance(tmp_path: Path) -> None:
+    root = project(tmp_path)
+    service = VersionedMarketDataService(root / ".runtime" / "data-service")
+    version = service.acquire(
+        DatasetKey("binance", "usd-m", "BTCUSDT", "4h", "a", "b"),
+        lambda: b"candles",
+        provenance={"source": "https://data.binance.vision"},
+    )
+    assert version.provenance_path is not None
+    (service.root / version.provenance_path).write_text("tampered", encoding="utf-8")
+
+    assert data_main(["verify", "--root", str(root)]) == 2
 
 
 def test_artifact_cli_reports_missing_evidence(tmp_path: Path) -> None:

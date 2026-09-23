@@ -71,3 +71,18 @@ def test_spec_cli_rejects_unfilled_template(tmp_path: Path) -> None:
     path.write_text(VALID.replace("EMA touch", "<human-readable name>"), encoding="utf-8")
 
     assert main(["lint", str(path)]) == 2
+
+
+def test_user_spec_allows_multiline_comparison_operators(tmp_path: Path) -> None:
+    path = tmp_path / "spec.md"
+    path.write_text(
+        VALID.replace(
+            "EMA uses 200 prior closed candles; low <= EMA <= high.",
+            "`close[t] < lower[t]`\nAND\n`close[t - 1] > lower[t - 1]`",
+        ),
+        encoding="utf-8",
+    )
+
+    spec = load_user_spec(path)
+
+    assert "close[t] < lower[t]" in spec.exact_behavior

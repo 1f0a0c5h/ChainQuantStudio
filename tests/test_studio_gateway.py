@@ -810,6 +810,8 @@ def test_codex_worker_hands_strategy_to_backtest_and_waits_for_review(
 
         async def fake_turn(order: dict[str, Any], role: str, prior_result: str | None) -> str:
             assert order["instruction"] == "新增一個 20 日均線突破策略"
+            if role == "backtest":
+                assert "chain-data-service-handoff/v1" in order["results"]["dataset"]
             calls.append((role, prior_result))
             if role == "review":
                 return _review_report(order["stage"])
@@ -818,7 +820,17 @@ def test_codex_worker_hands_strategy_to_backtest_and_waits_for_review(
             return f"{role}-complete"
 
         store = JsonStateStore(tmp_path / "state.json")
-        worker = CodexWorkOrderRunner(project_root=tmp_path, store=store, agent_turn=fake_turn)
+        async def fake_dataset(_order: dict[str, Any]) -> str:
+            return '{"schema":"chain-data-service-handoff/v1","datasets":[{"sha256":"' + (
+                "a" * 64
+            ) + '"}]}'
+
+        worker = CodexWorkOrderRunner(
+            project_root=tmp_path,
+            store=store,
+            agent_turn=fake_turn,
+            dataset_materializer=fake_dataset,
+        )
         service = StudioService(
             project_root=tmp_path,
             store=store,
@@ -862,6 +874,7 @@ def test_codex_worker_hands_strategy_to_backtest_and_waits_for_review(
             ("optimize", "backtest-complete"),
         ]
         assert order["stage"] == "backtest_approval"
+        assert "chain-data-service-handoff/v1" in order["results"]["dataset"]
         assert order["results"]["backtest"] == "backtest-complete"
         assert (tmp_path / "work" / "studio" / order["id"] / "result.json").is_file()
 
@@ -914,6 +927,59 @@ def test_codex_worker_skips_backtest_only_when_user_explicitly_opts_out(
         assert "backtest" not in order["results"]
         messages = (await store.read())["messages"]
         assert any("等待實作批准" in item["text"] for item in messages)
+
+    asyncio.run(scenario())
+
+
+def test_backtest_stage_recovers_missing_data_service_handoff(tmp_path: Path) -> None:
+    async def scenario() -> None:
+        materialized: list[str] = []
+
+        async def fake_dataset(order: dict[str, Any]) -> str:
+            materialized.append(order["id"])
+            return '{"schema":"chain-data-service-handoff/v1","datasets":[]}'
+
+        async def fake_turn(
+            order: dict[str, Any], role: str, prior_result: str | None
+        ) -> str:
+            del prior_result
+            if role == "backtest":
+                assert "chain-data-service-handoff/v1" in order["results"]["dataset"]
+                return "backtest-complete"
+            return _review_report(order["stage"])
+
+        store = JsonStateStore(tmp_path / "state.json")
+        await store.write(
+            {
+                "messages": [],
+                "work_orders": [
+                    {
+                        "id": "strategy-missing-dataset-1",
+                        "agent": "strategy",
+                        "artifact_kind": "strategy",
+                        "backtest_required": True,
+                        "status": "queued",
+                        "stage": "backtest",
+                        "created_at": "2026-01-01T00:00:00+00:00",
+                        "instruction": "backtest target strategy",
+                        "results": {"strategy": "implementation handoff"},
+                    }
+                ],
+            }
+        )
+        worker = CodexWorkOrderRunner(
+            project_root=tmp_path,
+            store=store,
+            agent_turn=fake_turn,
+            dataset_materializer=fake_dataset,
+        )
+
+        await worker._execute((await store.read())["work_orders"][0])
+
+        order = (await store.read())["work_orders"][0]
+        assert materialized == ["strategy-missing-dataset-1"]
+        assert order["status"] == "awaiting_backtest_approval"
+        assert "chain-data-service-handoff/v1" in order["results"]["dataset"]
 
     asyncio.run(scenario())
 
@@ -1202,6 +1268,10 @@ def test_backtest_retry_receives_review_blockers_and_requires_matching_market() 
             "id": "strategy-backtest-retry-1",
             "instruction": "Backtest a Binance USD-M BTCUSDT 4h strategy",
             "results": {
+                "dataset": (
+                    '{"schema":"chain-data-service-handoff/v1",'
+                    '"datasets":[{"key":{"market":"usd-m"}}]}'
+                ),
                 "review_backtest": (
                     "# FAIL\nBLOCKER: Spot candles cannot validate USD-M perpetual signals"
                 )
@@ -1211,6 +1281,8 @@ def test_backtest_retry_receives_review_blockers_and_requires_matching_market() 
         prior_result="Strategy implementation handoff",
     )
     assert "Strategy implementation handoff" in prompt
+    assert "Deterministic Data Service handoff" in prompt
+    assert '"market":"usd-m"' in prompt
     assert "Independent Review Agent findings from the prior backtest" in prompt
     assert "Spot candles cannot validate USD-M perpetual signals" in prompt
 
@@ -1497,6 +1569,95 @@ def test_codex_worker_requeues_timeout_without_losing_stage(tmp_path: Path) -> N
     asyncio.run(scenario())
 
 
+def test_codex_worker_claim_preserves_optimize_stage(tmp_path: Path) -> None:
+    async def scenario() -> None:
+        store = JsonStateStore(tmp_path / "state.json")
+        await store.write(
+            {
+                "messages": [],
+                "work_orders": [
+                    {
+                        "id": "strategy-optimize-1",
+                        "agent": "strategy",
+                        "status": "queued",
+                        "stage": "optimize",
+                        "results": {
+                            "backtest": "complete",
+                            "review_backtest": _review_report("review_backtest"),
+                        },
+                    }
+                ],
+            }
+        )
+        worker = CodexWorkOrderRunner(project_root=tmp_path, store=store, agent_turn=None)
+
+        claimed = await worker._claim_next()
+
+        assert claimed is not None
+        assert claimed["stage"] == "optimize"
+        state = await store.read()
+        assert state["work_orders"][0]["stage"] == "optimize"
+        assert state["messages"][-1]["author"] == "OPTIMIZE"
+
+    asyncio.run(scenario())
+
+
+def test_worker_recovers_optimizer_stage_regression_dead_letter(tmp_path: Path) -> None:
+    async def scenario() -> None:
+        reason = "Codex strategy turn exceeded 3600 seconds"
+        issue_key = CodexWorkOrderRunner._issue_key("strategy", reason)
+        store = JsonStateStore(tmp_path / "state.json")
+        await store.write(
+            {
+                "messages": [],
+                "dead_letters": [
+                    {"id": "strategy-optimize-recovery-1", "reason": reason}
+                ],
+                "work_orders": [
+                    {
+                        "id": "strategy-optimize-recovery-1",
+                        "agent": "strategy",
+                        "status": "dead_letter",
+                        "stage": "strategy",
+                        "optimization_required": True,
+                        "attempts": 9,
+                        "issue_counts": {issue_key: 6, "review_backtest:prior": 3},
+                        "last_error": reason,
+                        "recurring_issues": [issue_key],
+                        "finished_at": "2026-01-01T00:00:00+00:00",
+                        "results": {
+                            "strategy": "implemented",
+                            "backtest": "complete",
+                            "review_backtest": _review_report("review_backtest"),
+                        },
+                        "checkpoints": [
+                            {"stage": "optimize", "status": "working"},
+                            {"stage": "strategy", "status": "working"},
+                        ],
+                    }
+                ],
+            }
+        )
+        worker = CodexWorkOrderRunner(project_root=tmp_path, store=store, agent_turn=None)
+
+        await worker._recover_optimizer_stage_regressions()
+
+        state = await store.read()
+        order = state["work_orders"][0]
+        assert order["status"] == "queued"
+        assert order["stage"] == "optimize"
+        assert order["attempts"] == 3
+        assert order["issue_counts"] == {"review_backtest:prior": 3}
+        assert "last_error" not in order
+        assert "recurring_issues" not in order
+        assert order["results"]["backtest"] == "complete"
+        assert order["checkpoints"][-1]["status"] == "queued_after_stage_recovery"
+        assert state["dead_letters"] == []
+        assert state["messages"][-1]["author"] == "MAINTENANCE"
+
+    asyncio.run(scenario())
+
+
 def test_codex_worker_backs_off_transient_usage_limit_without_losing_stage(
     tmp_path: Path,
 ) -> None:
@@ -1573,6 +1734,10 @@ def test_codex_worker_resumes_backtest_from_persisted_strategy_handoff(
     async def scenario() -> None:
         calls: list[tuple[str, str | None]] = []
 
+        async def fake_dataset(order: dict[str, Any]) -> str:
+            assert order["id"] == "strategy-resume-1"
+            return '{"schema":"chain-data-service-handoff/v1","datasets":[]}'
+
         async def fake_turn(order: dict[str, Any], role: str, prior_result: str | None) -> str:
             calls.append((role, prior_result))
             return (
@@ -1594,6 +1759,7 @@ def test_codex_worker_resumes_backtest_from_persisted_strategy_handoff(
             project_root=tmp_path,
             store=store,
             agent_turn=fake_turn,
+            dataset_materializer=fake_dataset,
         )
 
         await worker._execute(order)
@@ -1605,6 +1771,7 @@ def test_codex_worker_resumes_backtest_from_persisted_strategy_handoff(
             ("review", "backtest-complete"),
         ]
         assert saved["status"] == "awaiting_backtest_approval"
+        assert "chain-data-service-handoff/v1" in saved["results"]["dataset"]
         assert saved["results"]["backtest"] == "backtest-complete"
 
     asyncio.run(scenario())
@@ -2647,6 +2814,41 @@ def test_http_gateway_lists_and_serves_backtest_artifacts(tmp_path: Path) -> Non
             ),
             encoding="utf-8",
         )
+        blocked = reports / "backtests" / "btc-walk" / "dataset-gate"
+        blocked.mkdir(parents=True)
+        (blocked / "manifest.json").write_text(
+            json.dumps(
+                {
+                    "work_order": "strategy-nested-1",
+                    "status": "blocked_missing_compatible_dataset",
+                    "engine": {"executed": False},
+                }
+            ),
+            encoding="utf-8",
+        )
+        completed = reports / "backtests" / "btc-walk" / "completed"
+        completed.mkdir(parents=True)
+        (completed / "report.md").write_text("# Nested backtest evidence", encoding="utf-8")
+        (completed / "equity.svg").write_text("<svg></svg>", encoding="utf-8")
+        (completed / "manifest.json").write_text(
+            json.dumps(
+                {
+                    "work_order": "strategy-nested-1",
+                    "status": "complete_awaiting_independent_review",
+                    "artifact": {"stable_id": "btc-walk"},
+                    "engine": {"executed": True},
+                    "performance_standard": {"cagr": 0.2},
+                    "provenance": {"dataset": {"row_count": 14736}},
+                    "evidence": {
+                        "report": "reports/backtests/btc-walk/completed/report.md",
+                        "charts": {
+                            "equity": "reports/backtests/btc-walk/completed/equity.svg"
+                        },
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
         store = JsonStateStore(tmp_path / "state.json")
         await store.write(
             {
@@ -2658,7 +2860,14 @@ def test_http_gateway_lists_and_serves_backtest_artifacts(tmp_path: Path) -> Non
                         "status": "awaiting_review",
                         "stage": "user_review",
                         "results": {"strategy": "done", "backtest": "done"},
-                    }
+                    },
+                    {
+                        "id": "strategy-nested-1",
+                        "agent": "strategy",
+                        "status": "awaiting_review",
+                        "stage": "user_review",
+                        "results": {"strategy": "done", "backtest": "done"},
+                    },
                 ],
             }
         )
@@ -2683,6 +2892,26 @@ def test_http_gateway_lists_and_serves_backtest_artifacts(tmp_path: Path) -> Non
             assert opened.content_type == "text/markdown"
             assert await opened.text() == "# Backtest evidence"
             assert opened.headers["Content-Disposition"] == 'inline; filename="fixture.md"'
+            nested_file = payload["work_orders"][1]["backtest_file"]
+            assert nested_file["title"] == "btc-walk"
+            assert nested_file["candle_count"] == 14736
+            assert len(nested_file["artifacts"]) == 3
+            nested_report = next(
+                item for item in nested_file["artifacts"] if item["kind"] == "report"
+            )
+            nested_chart = next(
+                item for item in nested_file["artifacts"] if item["kind"] == "chart"
+            )
+            report_response = await client.get(
+                nested_report["url"], headers={"Origin": "https://studio.test"}
+            )
+            assert report_response.status == 200
+            assert await report_response.text() == "# Nested backtest evidence"
+            chart_response = await client.get(
+                nested_chart["url"], headers={"Origin": "https://studio.test"}
+            )
+            assert chart_response.status == 200
+            assert await chart_response.text() == "<svg></svg>"
             try:
                 service.resolve_report_artifact("AGENTS.md")
             except ValueError as exc:

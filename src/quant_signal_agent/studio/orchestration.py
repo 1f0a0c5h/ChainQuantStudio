@@ -159,6 +159,8 @@ class DatasetVersion:
     sha256: str
     byte_count: int
     key: DatasetKey
+    provenance_path: str | None = None
+    provenance_sha256: str | None = None
 
     def as_dict(self) -> dict[str, Any]:
         value = asdict(self)
@@ -175,14 +177,25 @@ class VersionedMarketDataService:
         self.registry_path = self.root / "registry.json"
         self._lock = threading.RLock()
 
-    def acquire(self, key: DatasetKey, loader: Callable[[], bytes]) -> DatasetVersion:
+    def acquire(
+        self,
+        key: DatasetKey,
+        loader: Callable[[], bytes],
+        *,
+        provenance: Mapping[str, Any] | None = None,
+    ) -> DatasetVersion:
         with self._lock:
             registry = self._read_registry()
             existing = registry.get(key.canonical)
             if isinstance(existing, dict):
                 version = self._from_dict(existing)
                 path = self.root / version.path
-                if path.is_file() and self._sha256(path.read_bytes()) == version.sha256:
+                provenance_valid = provenance is None or self._provenance_valid(version)
+                if (
+                    path.is_file()
+                    and self._sha256(path.read_bytes()) == version.sha256
+                    and provenance_valid
+                ):
                     return version
 
             payload = loader()
@@ -197,6 +210,20 @@ class VersionedMarketDataService:
                 temporary = destination.with_suffix(".tmp")
                 temporary.write_bytes(payload)
                 temporary.replace(destination)
+            provenance_path: str | None = None
+            provenance_sha256: str | None = None
+            if provenance is not None:
+                provenance_payload = json.dumps(
+                    dict(provenance), indent=2, sort_keys=True
+                ).encode("utf-8")
+                provenance_relative = (
+                    Path("provenance") / key.dataset_id / f"{version_id}.json"
+                )
+                provenance_destination = self.root / provenance_relative
+                provenance_destination.parent.mkdir(parents=True, exist_ok=True)
+                provenance_destination.write_bytes(provenance_payload)
+                provenance_path = provenance_relative.as_posix()
+                provenance_sha256 = self._sha256(provenance_payload)
             version = DatasetVersion(
                 dataset_id=key.dataset_id,
                 version=version_id,
@@ -204,6 +231,8 @@ class VersionedMarketDataService:
                 sha256=digest,
                 byte_count=len(payload),
                 key=key,
+                provenance_path=provenance_path,
+                provenance_sha256=provenance_sha256,
             )
             registry[key.canonical] = version.as_dict()
             self._write_registry(registry)
@@ -248,7 +277,26 @@ class VersionedMarketDataService:
                 end=str(raw_key["end"]),
                 schema_version=str(raw_key["schema_version"]),
             ),
+            provenance_path=(
+                str(value["provenance_path"])
+                if isinstance(value.get("provenance_path"), str)
+                else None
+            ),
+            provenance_sha256=(
+                str(value["provenance_sha256"])
+                if isinstance(value.get("provenance_sha256"), str)
+                else None
+            ),
         )
+
+    def _provenance_valid(self, version: DatasetVersion) -> bool:
+        if not version.provenance_path or not version.provenance_sha256:
+            return False
+        relative = Path(version.provenance_path)
+        if relative.is_absolute() or ".." in relative.parts:
+            return False
+        path = self.root / relative
+        return path.is_file() and self._sha256(path.read_bytes()) == version.provenance_sha256
 
     @staticmethod
     def _sha256(payload: bytes) -> str:
